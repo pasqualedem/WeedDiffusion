@@ -1,4 +1,4 @@
-seed: 1682409321
+seed: 1682406612
 experiment:
   id: phenobench
 data:
@@ -8,10 +8,12 @@ data:
   image_normalizer:
     name: single_image_normalizer
 backbone:
-  name: deeplabv3plus_resnet50
+  name: erfnet
   num_classes: 3
   pretrained: false
 train:
+  accelerator: gpu
+  devices: 1
   step_settings:
     - regular
   max_epoch: 200
@@ -51,17 +53,18 @@ train:
       height: 768
       width: 768
 val:
-  # step_settings:
-  #   - regular
-  # n_gpus: 1
-  # batch_size: 2
-  # check_val_every_n_epoch: 4096
-  # vis_val_every_x_epochs: 4096
-  # postprocess_val_every_x_epochs: 4096
   geometric_data_augmentations: {}
-    # center_crop:
-    #   height: 1024
-    #   width: 1024
+  step_settings:
+    - regular
+#   n_gpus: 1
+  batch_size: 4
+#   check_val_every_n_epoch: 50
+#   vis_val_every_x_epochs: 50
+#   postprocess_val_every_x_epochs: 50
+#   geometric_data_augmentations:
+#     center_crop:
+#       height: 1024
+#       width: 1024
 test:
   step_settings:
     - regular

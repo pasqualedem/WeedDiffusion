@@ -1,0 +1,4 @@
+/results/
+/phenobench/semantic_segmentation/out/
+
+*.pyc

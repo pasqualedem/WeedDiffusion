@@ -3,7 +3,7 @@ experiment:
   id: phenobench
 data:
   name: PDC
-  path_to_dataset: <path_to_dataset>
+  path_to_dataset: ../../data/PhenoBench
   num_workers: 4
   image_normalizer:
     name: single_image_normalizer
