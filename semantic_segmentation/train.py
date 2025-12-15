@@ -115,12 +115,14 @@ def main():
         filename=cfg["experiment"]["id"] + "_{epoch:02d}_{train_loss:.4f}",
         mode="min",
         save_last=False,
+        save_on_train_epoch_end=True
     )
     checkpoint_saver_train_mIoU = ModelCheckpoint(
         monitor="train_mIoU",
         filename=cfg["experiment"]["id"] + "_{epoch:02d}_{train_mIoU:.4f}",
         mode="max",
         save_last=False,
+        save_on_train_epoch_end=True
     )
 
     my_checkpoint_savers = [

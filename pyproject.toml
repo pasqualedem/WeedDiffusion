@@ -5,17 +5,28 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "accelerate>=1.12.0",
+    "click>=8.3.1",
+    "diffusers>=0.36.0",
     "gitpython>=3.1.45",
     "kornia>=0.8.2",
     "lightning>=2.6.0",
     "matplotlib>=3.10.8",
+    "notebook>=7.5.0",
     "onnxruntime>=1.23.2",
+    "opencv-python>=4.12.0.88",
     "oyaml>=1.0",
     "pillow>=12.0.0",
     "scikit-image>=0.25.2",
+    "segment-anything",
     "tifffile>=2025.10.16",
     "torch>=2.9.1",
     "torchmetrics>=1.8.2",
     "torchvision>=0.24.1",
+    "transformers>=4.57.3",
     "wget>=3.2",
 ]
+
+[tool.uv.sources]
+diffusers = { git = "https://github.com/huggingface/diffusers" }
+segment-anything = { git = "https://github.com/facebookresearch/segment-anything" }

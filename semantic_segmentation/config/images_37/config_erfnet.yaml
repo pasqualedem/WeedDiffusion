@@ -4,6 +4,7 @@ experiment:
 data:
   name: PDC
   path_to_dataset: ../../data/PhenoBench
+  path_to_train_images: ../../data/PhenoBench/train/images_37
   num_workers: 4
   image_normalizer:
     name: single_image_normalizer
@@ -13,7 +14,7 @@ backbone:
   pretrained: false
 train:
   accelerator: gpu
-  devices: 1
+  devices: [2]
   step_settings:
     - regular
   max_epoch: 200

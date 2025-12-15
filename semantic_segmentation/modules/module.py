@@ -3,7 +3,7 @@ import pdb
 from typing import Any, Dict, List, Optional, Tuple
 
 import oyaml as yaml
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -31,13 +31,21 @@ class SegmentationNetwork(pl.LightningModule):
     self.criterion = criterion
     self.learning_rate = learning_rate
     self.weight_decay = weight_decay
+    
+    self.validation_step_outputs: List = []
 
     self.save_hyperparameters("learning_rate", "weight_decay")
 
     # evaluation metrics for all classes
-    self.metric_train_iou = torchmetrics.JaccardIndex(self.network.num_classes, reduction=None)
-    self.metric_val_iou = torchmetrics.JaccardIndex(self.network.num_classes, reduction=None)
-    self.metric_test_iou = torchmetrics.JaccardIndex(self.network.num_classes, reduction=None)
+    self.metric_train_iou = torchmetrics.JaccardIndex(
+        task="multiclass", num_classes=self.network.num_classes, average=None
+    )
+    self.metric_val_iou = torchmetrics.JaccardIndex(
+        task="multiclass", num_classes=self.network.num_classes, average=None
+    )
+    self.metric_test_iou = torchmetrics.JaccardIndex(
+        task="multiclass", num_classes=self.network.num_classes, average=None
+    )
 
     if train_step_settings is not None:
       self.train_step_settings = train_step_settings
@@ -115,108 +123,133 @@ class SegmentationNetwork(pl.LightningModule):
     my_local_loss_values = {var_name: var_value for var_name, var_value in locals().items() if var_name.startswith('loss')}
     loss = torch.sum(torch.stack(list(my_local_loss_values.values())))
     
+    self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+    self.metric_train_iou.update(pred, batch['anno'])
+    
     out_dict = {'loss': loss, 'logits': logits_regular, 'anno': batch['anno']}
     out_dict.update(my_local_loss_values)
     del my_local_loss_values
     
     return out_dict
    
-  def training_epoch_end(self, training_step_outputs: List) -> None:
-    epoch = self.trainer.current_epoch
+  def on_train_epoch_end(self) -> None:
+      # ---- IoU (epoch-level, Lightning-visible) ----
+      mIoU = self.metric_train_iou.compute()
+      self.log(
+          "train_mIoU",
+          mIoU.mean(),
+          on_epoch=True,
+          prog_bar=True,
+          sync_dist=True
+      )
+      self.metric_train_iou.reset()
 
-    # compute loss(es) over all batches and log
-    dict_keys = training_step_outputs[0].keys()
-    for key in dict_keys:
-      if key.startswith('loss'):
-        loss_accumulated = torch.stack([x[key] for x in training_step_outputs])
-        loss_avg = loss_accumulated.mean().detach()
-        self.logger.experiment.add_scalars(f'{key}', {'train': loss_avg}, epoch)
-   
-    # the following logging is required *ModelCheckpoint* to work as expected
-    losses = torch.stack([x['loss'] for x in training_step_outputs])
-    train_loss_avg = losses.mean().detach()
-    self.log("train_loss", train_loss_avg, on_epoch=True, sync_dist=False)
+  def validation_step(self, batch: dict, batch_idx: int):
+      if not self.val_step_settings:
+          raise ValueError("You need to specify the settings for the validation step.")
+      assert len(self.val_step_settings) == 1
 
-    # compute final metrics over all batches
-    iou_per_class = self.metric_train_iou.compute().detach()
-    mIoU = iou_per_class.mean()
-    self.metric_train_iou.reset()
+      # forward
+      logits = self.forward(batch["input_image"])
 
-    for class_index, iou_class in enumerate(iou_per_class):
-      self.logger.experiment.add_scalars(f"iou_class_{class_index}", {'train': iou_class}, epoch)
-    self.logger.experiment.add_scalars("mIoU", {'train': mIoU}, epoch)
-    self.log("train_mIoU", mIoU, on_epoch=True, sync_dist=False)
+      # loss
+      loss = self.compute_xentropy_loss(
+          logits, batch["anno"], mode="val"
+      )
 
-    # path_to_classwise_iou_dir = os.path.join(self.trainer.log_dir, 'train', 'evaluation', 'iou-classwise', f'epoch-{epoch:06d}')
-    # save_iou_metric(iou_per_class, path_to_classwise_iou_dir)
+      # Lightning-visible logging (this is what matters)
+      self.log(
+          "val_loss",
+          loss,
+          on_step=False,
+          on_epoch=True,
+          prog_bar=True,
+          sync_dist=True
+      )
 
-  def validation_step(self, batch: dict, batch_idx: int) -> Dict[str, Any]:
-    if not self.val_step_settings:
-      raise ValueError('You need to specify the settings for the validation step.')
-    assert len(self.val_step_settings) == 1
+      # update metric state (NO compute here)
+      preds = torch.argmax(logits, dim=1)
+      self.metric_val_iou.update(preds, batch["anno"])
 
-    # predictions
-    if 'regular' in self.val_step_settings:
-      logits = self.forward(batch['input_image'])
+      return loss
 
-    # objective
-    loss = self.compute_xentropy_loss(logits, batch['anno'], mode='val')
+  def on_validation_epoch_end(self) -> None:
+      # ---- IoU aggregation ----
+      iou_per_class = self.metric_val_iou.compute()
+      mIoU = iou_per_class.mean()
 
-    # update validation metrics
-    self.metric_val_iou(torch.argmax(logits, dim=1), batch['anno'])
+      # Lightning-visible metric (checkpoint-safe)
+      self.log(
+          "val_mIoU",
+          mIoU,
+          on_epoch=True,
+          prog_bar=True,
+          sync_dist=True
+      )
 
-    return {'loss': loss, 'logits': logits, 'anno': batch['anno']}
+      # optional: per-class IoU (logger-only diagnostics)
+      epoch = self.trainer.current_epoch
+      for class_index, iou_class in enumerate(iou_per_class):
+          self.logger.experiment.log_metrics(
+              {f"val/iou_class_{class_index}": iou_class},
+              epoch
+          )
 
-  def validation_epoch_end(self, validation_step_outputs: List) -> None:
-    # compute loss over all batches
-    losses = torch.stack([x['loss'] for x in validation_step_outputs])
-    val_loss_avg = losses.mean()
+      self.logger.experiment.log_metrics(
+          {"val/mIoU": mIoU},
+          epoch
+      )
 
-    # logging
-    epoch = self.trainer.current_epoch
-    self.logger.experiment.add_scalars('loss', {'val': val_loss_avg}, epoch)
-    self.log("val_loss", val_loss_avg, on_epoch=True, sync_dist=False)
+      # reset metric state
+      self.metric_val_iou.reset()
 
-    # compute final metrics over all batches
-    iou_per_class = self.metric_val_iou.compute()
-    mIoU = iou_per_class.mean() 
-    self.metric_val_iou.reset()
+      # optional artifact saving
+      path = os.path.join(
+          self.trainer.log_dir,
+          "val",
+          "evaluation",
+          "iou-classwise",
+          f"epoch-{epoch:06d}",
+      )
+      save_iou_metric(iou_per_class, path)
 
-    for class_index, iou_class in enumerate(iou_per_class):
-      self.logger.experiment.add_scalars(f"iou_class_{class_index}", {'val': iou_class}, epoch)
-    self.logger.experiment.add_scalars("mIoU", {'val': mIoU}, epoch)
-    self.log("val_mIoU", mIoU, on_epoch=True, sync_dist=False)
+  def test_step(self, batch: dict, batch_idx: int):
+      if not self.test_step_settings:
+          raise ValueError("You need to specify the settings for the test step.")
+      assert len(self.test_step_settings) == 1
 
-    path_to_classwise_iou_dir = os.path.join(self.trainer.log_dir, 'val', 'evaluation', 'iou-classwise', f'epoch-{epoch:06d}')
-    save_iou_metric(iou_per_class, path_to_classwise_iou_dir)
+      # forward
+      logits = self.forward(batch["input_image"])
 
-  def test_step(self, batch: dict, batch_idx: int) -> Dict[str, Any]:
-    if not self.test_step_settings:
-      raise ValueError('You need to specify the settings for the test step.')
-    assert len(self.test_step_settings) == 1
+      preds = torch.argmax(logits, dim=1)
 
-    # predictions
-    if 'regular' in self.test_step_settings:
-      logits = self.forward(batch['input_image'])
-    
-    pred_cls = torch.argmax(logits, dim=1)
+      # update metric state (ONLY update, never compute)
+      self.metric_test_iou.update(preds, batch["anno"])
 
-    # regular evaluation for all classes
-    self.metric_test_iou(pred_cls, batch['anno'])
+  def on_test_epoch_end(self) -> None:
+      iou_per_class = self.metric_test_iou.compute()
+      mIoU = float(iou_per_class.mean())
 
-    return {'logits': logits, 'anno': batch['anno']}
+      # Lightning-visible logging (optional but correct)
+      self.log(
+          "test_mIoU",
+          mIoU,
+          prog_bar=True,
+          sync_dist=True
+      )
 
-  def test_epoch_end(self, test_step_outputs: List) -> None:
-    # compute final metrics over all batches
-    iou_per_class = self.metric_test_iou.compute()
-    mIoU = round(float(iou_per_class.mean().cpu()), 3)
-    print(f"Test mIoU: {mIoU}")
-    self.metric_test_iou.reset()
+      print(f"Test mIoU: {mIoU:.3f}")
 
-    epoch = self.trainer.current_epoch
-    
-    path_to_classwise_iou_dir = os.path.join(self.trainer.log_dir, 'evaluation', 'iou-classwise',  f'epoch-{epoch:06d}')
-    save_iou_metric(iou_per_class, path_to_classwise_iou_dir)
+      self.metric_test_iou.reset()
+
+      epoch = self.trainer.current_epoch
+      path = os.path.join(
+          self.trainer.log_dir,
+          "evaluation",
+          "iou-classwise",
+          f"epoch-{epoch:06d}",
+      )
+      save_iou_metric(iou_per_class, path)
 
   def lr_scaling(self, current_epoch: int) -> float:
     warm_up_epochs = 16
@@ -240,7 +273,7 @@ class SegmentationNetwork(pl.LightningModule):
 
     return {"optimizer": optimizer, "lr_scheduler": scheduler_config}
   
-  def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
+  def lr_scheduler_step(self, scheduler, optimizer_idx):
     scheduler.step()
 
 def save_iou_metric(metrics: torch.Tensor, path_to_dir: str) -> None:

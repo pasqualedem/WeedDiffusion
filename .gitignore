@@ -1,4 +1,6 @@
 /results/
 /phenobench/semantic_segmentation/out/
+out/
+/checkpoints/
 
 *.pyc

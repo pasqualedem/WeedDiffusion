@@ -12,7 +12,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "train.py",
-            "args": ["--config", "./config/config_erfnet.yaml", "--export_dir", "out/test1"],
+            "args": ["--config", "./config/images_37/config_erfnet.yaml", "--export_dir", "out/test1"],
             "console": "integratedTerminal"
         }
     ]

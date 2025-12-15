@@ -4,7 +4,7 @@ import random
 from typing import Callable, Dict, List, Optional
 
 import numpy as np
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 import yaml
 from PIL import Image
@@ -55,6 +55,8 @@ class PDC(Dataset):
         img_normalizer: ImageNormalizer,
         augmentations_geometric: List[GeometricDataAugmentation],
         augmentations_color: List[Callable],
+        path_to_train_images: Optional[str] = None,
+        path_to_train_annos: Optional[str] = None,
     ):
         """Get the path to all images and its corresponding annotations.
 
@@ -64,6 +66,8 @@ class PDC(Dataset):
             img_normalizer (ImageNormalizer): Specifies how to normalize the input images
             augmentations_geometric (List[GeometricDataAugmentation]): Geometric data augmentations applied to the image and its annotations
             augmentations_color (List[Callable]): Color data augmentations applied to the image
+            path_to_train_images (str): Path to the training images, replaces the default one if provided
+            path_to_train_annos (str): Path to the training annotations, replaces the default one
         """
 
         assert os.path.exists(
@@ -78,10 +82,13 @@ class PDC(Dataset):
         self.img_normalizer = img_normalizer
         self.augmentations_geometric = augmentations_geometric
         self.augmentations_color = augmentations_color
+        
+        path_to_train_annos = path_to_train_annos or os.path.join(path_to_dataset, "train", "semantics")
+        path_to_train_images = path_to_train_images or os.path.join(path_to_dataset, "train", "images")
 
         # ------------- Prepare Training -------------
-        self.path_to_train_images = os.path.join(path_to_dataset, "train", "images")
-        self.path_to_train_annos = os.path.join(path_to_dataset, "train", "semantics")
+        self.path_to_train_images = path_to_train_images
+        self.path_to_train_annos = path_to_train_annos
         self.filenames_train = common.get_img_fnames_in_dir(self.path_to_train_images)
 
         # ------------- Prepare Training -------------
@@ -257,6 +264,8 @@ class PDCModule(pl.LightningDataModule):
                 img_normalizer=image_normalizer,
                 augmentations_geometric=train_augmentations_geometric,
                 augmentations_color=train_augmentations_color,
+                path_to_train_images=self.cfg["data"].get("path_to_train_images", None),
+                path_to_train_annos=self.cfg["data"].get("path_to_train_annos", None),
             )
 
             # # ----------- VAL -----------
