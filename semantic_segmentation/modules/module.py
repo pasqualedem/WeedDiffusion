@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchmetrics
 
-from modules.losses import get_div_loss_weight, js_div_loss, gjs_div_loss, kl_div_loss
+from .losses import get_div_loss_weight, js_div_loss, gjs_div_loss, kl_div_loss
 
 # from modules.deeplab.modeling import deeplabv3plus_resnet50
 # from modules.unet import UNet
@@ -32,6 +32,7 @@ class SegmentationNetwork(pl.LightningModule):
     self.learning_rate = learning_rate
     self.weight_decay = weight_decay
     
+    self.last_logits = None
     self.validation_step_outputs: List = []
 
     self.save_hyperparameters("learning_rate", "weight_decay")
@@ -170,6 +171,8 @@ class SegmentationNetwork(pl.LightningModule):
       # update metric state (NO compute here)
       preds = torch.argmax(logits, dim=1)
       self.metric_val_iou.update(preds, batch["anno"])
+      
+      self.last_logits = logits.detach()
 
       return loss
 
@@ -219,9 +222,12 @@ class SegmentationNetwork(pl.LightningModule):
       assert len(self.test_step_settings) == 1
 
       # forward
+      
       logits = self.forward(batch["input_image"])
 
       preds = torch.argmax(logits, dim=1)
+      
+      self.last_logits = logits.detach()
 
       # update metric state (ONLY update, never compute)
       self.metric_test_iou.update(preds, batch["anno"])
@@ -237,6 +243,11 @@ class SegmentationNetwork(pl.LightningModule):
           prog_bar=True,
           sync_dist=True
       )
+      for class_index, iou_class in enumerate(iou_per_class):
+          self.logger.experiment.log_metrics(
+              {f"test/iou_class_{class_index}": iou_class},
+              self.trainer.current_epoch
+          )
 
       print(f"Test mIoU: {mIoU:.3f}")
 

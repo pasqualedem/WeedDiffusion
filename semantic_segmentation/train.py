@@ -13,15 +13,15 @@ from lightning.pytorch import seed_everything
 import lightning.pytorch as pl
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
-from callbacks import (
+from .callbacks import (
     ConfigCallback,
     PostprocessorrCallback,
     VisualizerCallback,
     get_postprocessors,
     get_visualizers,
 )
-from datasets import get_data_module
-from modules import get_backbone, get_criterion, module
+from .datasets import get_data_module
+from .modules import get_backbone, get_criterion, module
 
 
 def get_git_commit_hash() -> str:
@@ -67,8 +67,12 @@ def load_config(path_to_config_file: str) -> Dict:
 
 def main():
     args = parse_args()
+    train_segmentor(config_path=args["config"], resume=args["resume"], ckpt_path=args["ckpt_path"], export_dir=args["export_dir"])
 
-    cfg = load_config(args["config"])
+
+def train_segmentor(config_path: str, resume: bool = False, ckpt_path: str = None, export_dir: str = "./logs"):
+
+    cfg = load_config(config_path)
     cfg["git-commit"] = get_git_commit_hash()
 
     if cfg.get("seed") is None:
@@ -84,7 +88,7 @@ def main():
     # define backbone
     network = get_backbone(cfg)
 
-    if (args["ckpt_path"] is not None) and (not args["resume"]):
+    if (ckpt_path is not None) and (not resume):
         seg_module = module.SegmentationNetwork(
             network,
             criterion,
@@ -92,7 +96,7 @@ def main():
             cfg["train"]["weight_decay"],
             train_step_settings=cfg["train"]["step_settings"],
             val_step_settings = cfg['val']['step_settings'],
-            ckpt_path=args["ckpt_path"],
+            ckpt_path=ckpt_path,
         )
     else:
         seg_module = module.SegmentationNetwork(
@@ -144,7 +148,7 @@ def main():
         devices=cfg["train"]["devices"],
         benchmark=cfg["train"]["benchmark"],
         # gpus=cfg['train']['n_gpus'],
-        default_root_dir=args["export_dir"],
+        default_root_dir=export_dir,
         max_epochs=cfg["train"]["max_epoch"],
         # check_val_every_n_epoch=cfg['val']['check_val_every_n_epoch'],
         callbacks=[
@@ -157,17 +161,17 @@ def main():
         ],
     )
 
-    if args["ckpt_path"] is None:
+    if ckpt_path is None:
         print("Train from scratch.")
         trainer.fit(seg_module, datasetmodule)
-    elif (args["ckpt_path"] is not None) and (not args["resume"]):
+    elif (ckpt_path is not None) and (not resume):
         print(
             "Load pretrained model weights but other params (e.g. learning rate) start from scratch."
         )
         trainer.fit(seg_module, datasetmodule)
-    elif (args["ckpt_path"] is not None) and args["resume"]:
+    elif (ckpt_path is not None) and resume:
         print("Load pretrained model weights and resume training.")
-        trainer.fit(seg_module, datasetmodule, ckpt_path=args["ckpt_path"])
+        trainer.fit(seg_module, datasetmodule, ckpt_path=ckpt_path)
     else:
         raise RuntimeError("Can't train any model since the settings are invalid.")
 

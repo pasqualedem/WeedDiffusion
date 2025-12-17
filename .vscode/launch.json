@@ -4,16 +4,33 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-    
-
         {
-            "cwd": "${workspaceFolder}/phenobench/semantic_segmentation",
             "name": "Train ERFNet",
             "type": "debugpy",
             "request": "launch",
-            "program": "train.py",
-            "args": ["--config", "./config/images_37/config_erfnet.yaml", "--export_dir", "out/test1"],
+            "program": "semantic_segmentation/train.py",
+            "args": [
+                "--config",
+                "./semantic_segmentation/config/images_37/config_erfnet.yaml",
+                "--export_dir",
+                "out/train1"
+            ],
             "console": "integratedTerminal"
-        }
+        },
+        {
+            "name": "Test ERFNet",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "semantic_segmentation/test.py",
+            "args": [
+                "--config",
+                "./semantic_segmentation/config/images_37/config_erfnet.yaml",
+                "--ckpt_path",
+                "semantic_segmentation/out/train1/lightning_logs/version_38/checkpoints/phenobench_epoch=191_train_mIoU=0.7627.ckpt",
+                "--export_dir",
+                "out/test1"
+            ],
+            "console": "integratedTerminal"
+        },
     ]
 }

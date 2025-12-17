@@ -303,7 +303,7 @@ class PostprocessorrCallback(Callback):
     self.postprocess_train_every_x_epochs = postprocess_train_every_x_epochs
     self.postprocess_val_every_x_epochs = postprocess_val_every_x_epochs
 
-  def on_train_batch_end(self, trainer, pl_module, outputs: Dict[str, Any], batch, batch_idx, dataloader_idx):
+  def on_train_batch_end(self, trainer, pl_module, outputs: Dict[str, Any], batch, batch_idx):
     # visualize
     epoch = trainer.current_epoch
     if (epoch % self.postprocess_train_every_x_epochs) == 0 and (epoch != 0):
@@ -311,51 +311,23 @@ class PostprocessorrCallback(Callback):
 
       for postprocessor in self.postprocessors:
         # process logits
-        processed_logits = postprocessor.process_logits(outputs['logits'])
+        processed_logits = postprocessor.process_logits(pl_module.last_logits)
         postprocessor.save_postprocessed_logits(processed_logits, path, batch['fname'])
 
-        # process embeddings
-        if 'embeddings' in outputs.keys():
-          processed_embeddings = postprocessor.process_embeddings(outputs['embeddings'])
-          postprocessor.save_postprocessed_embeddings(processed_embeddings, path, batch['fname'])
-
-  def on_validation_batch_end(self, trainer, pl_module, outputs: Dict[str, Any], batch, batch_idx, dataloader_idx):
+  def on_validation_batch_end(self, trainer, pl_module, outputs: Dict[str, Any], batch, batch_idx):
     # visualize
     epoch = trainer.current_epoch
     if ((epoch + 1) % self.postprocess_val_every_x_epochs) == 0 and (epoch != 0):
      path = os.path.join(trainer.log_dir, 'val', 'postprocess', f'epoch-{epoch:06d}')
 
      for postprocessor in self.postprocessors:
-       processed_logits = postprocessor.process_logits(outputs['logits'])
+       processed_logits = postprocessor.process_logits(pl_module.last_logits)
        postprocessor.save_postprocessed_logits(processed_logits, path, batch['fname'])
 
-       # process embeddings
-       if 'embeddings' in outputs.keys():
-         processed_embeddings = postprocessor.process_embeddings(outputs['embeddings'])
-         postprocessor.save_postprocessed_embeddings(processed_embeddings, path, batch['fname'])
-
-  def on_test_batch_end(self, trainer, pl_module, outputs: Dict[str, Any], batch, batch_idx, dataloader_idx):
+  def on_test_batch_end(self, trainer, pl_module, outputs: Dict[str, Any], batch, batch_idx):
     # visualize
     path = os.path.join(trainer.log_dir, 'postprocess')
 
     for postprocessor in self.postprocessors:
-      processed_logits = postprocessor.process_logits(outputs['logits'])
+      processed_logits = postprocessor.process_logits(pl_module.last_logits)
       postprocessor.save_postprocessed_logits(processed_logits, path, batch['fname'])
-
-      # process embeddings
-      if 'embeddings' in outputs.keys():
-        processed_embeddings = postprocessor.process_embeddings(outputs['embeddings'])
-        postprocessor.save_postprocessed_embeddings(processed_embeddings, path, batch['fname'])
-
-  # def on_predict_batch_end(self, trainer, pl_module, outputs: Dict[str, Any], batch, batch_idx, dataloader_idx):
-  #   # visualize
-  #   path = os.path.join(trainer.log_dir, 'postprocess')
-
-  #   for postprocessor in self.postprocessors:
-  #     processed_logits = postprocessor.process_logits(outputs['logits'])
-  #     postprocessor.save_postprocessed_logits(processed_logits, path, batch['fname'])
-
-  #     # process embeddings
-  #     if 'embeddings' in outputs.keys():
-  #       processed_embeddings = postprocessor.process_embeddings(outputs['embeddings'])
-  #       postprocessor.save_postprocessed_embeddings(processed_embeddings, path, batch['fname'])

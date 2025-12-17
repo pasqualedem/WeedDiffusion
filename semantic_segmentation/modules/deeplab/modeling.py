@@ -1,7 +1,7 @@
 # props to: https://github.com/VainF/DeepLabV3Plus-Pytorch
-from modules.deeplab.utils import IntermediateLayerGetter
-from modules.deeplab._deeplab import DeepLabHead, DeepLabHeadV3Plus, DeepLabV3
-from modules.deeplab.backbones import resnet
+from .utils import IntermediateLayerGetter
+from ._deeplab import DeepLabHead, DeepLabHeadV3Plus, DeepLabV3
+from .backbones import resnet
 
 
 def _segm_resnet(name, backbone_name, num_classes, output_stride, pretrained_backbone):

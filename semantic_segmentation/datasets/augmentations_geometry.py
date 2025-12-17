@@ -434,6 +434,9 @@ def get_geometric_augmentations(cfg, stage: str) -> List[GeometricDataAugmentati
   assert stage in ['train', 'val', 'test', 'predict']
 
   geometric_augmentations = []
+  
+  if 'geometric_data_augmentations' not in cfg[stage].keys():
+    return []
 
   for tf_name in cfg[stage]['geometric_data_augmentations'].keys():
     # if tf_name == 'pad':

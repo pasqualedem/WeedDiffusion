@@ -1,7 +1,7 @@
 import os
 import pdb
 import random
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import lightning.pytorch as pl
@@ -11,13 +11,13 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-import datasets.common as common
-from datasets.augmentations_color import get_color_augmentations
-from datasets.augmentations_geometry import (
+from . import common
+from .augmentations_color import get_color_augmentations
+from .augmentations_geometry import (
     GeometricDataAugmentation,
     get_geometric_augmentations,
 )
-from datasets.image_normalizer import ImageNormalizer, get_image_normalizer
+from .image_normalizer import ImageNormalizer, get_image_normalizer
 
 
 class PDC(Dataset):
@@ -55,8 +55,7 @@ class PDC(Dataset):
         img_normalizer: ImageNormalizer,
         augmentations_geometric: List[GeometricDataAugmentation],
         augmentations_color: List[Callable],
-        path_to_train_images: Optional[str] = None,
-        path_to_train_annos: Optional[str] = None,
+        paths_to_train: Optional[List[Tuple[str, str]]] = None,
     ):
         """Get the path to all images and its corresponding annotations.
 
@@ -66,8 +65,7 @@ class PDC(Dataset):
             img_normalizer (ImageNormalizer): Specifies how to normalize the input images
             augmentations_geometric (List[GeometricDataAugmentation]): Geometric data augmentations applied to the image and its annotations
             augmentations_color (List[Callable]): Color data augmentations applied to the image
-            path_to_train_images (str): Path to the training images, replaces the default one if provided
-            path_to_train_annos (str): Path to the training annotations, replaces the default one
+            path_to_trains List[Tuple[str, str], optional): Custom path to training images and annotations. Defaults to None.
         """
 
         assert os.path.exists(
@@ -83,13 +81,26 @@ class PDC(Dataset):
         self.augmentations_geometric = augmentations_geometric
         self.augmentations_color = augmentations_color
         
-        path_to_train_annos = path_to_train_annos or os.path.join(path_to_dataset, "train", "semantics")
-        path_to_train_images = path_to_train_images or os.path.join(path_to_dataset, "train", "images")
-
         # ------------- Prepare Training -------------
-        self.path_to_train_images = path_to_train_images
-        self.path_to_train_annos = path_to_train_annos
-        self.filenames_train = common.get_img_fnames_in_dir(self.path_to_train_images)
+        train_images = []
+        if paths_to_train is not None:
+            for path_to_train_images, path_to_train_annos in paths_to_train:
+                img_filenames = common.get_img_fnames_in_dir(path_to_train_images)
+                anno_filenames = [
+                    os.path.join(path_to_train_annos, fname) for fname in img_filenames
+                ]
+                img_filenames = [os.path.join(path_to_train_images, fname) for fname in img_filenames]
+                train_images.extend(zip(img_filenames, anno_filenames))
+            self.filenames_train = train_images
+        else:
+            path_to_train_images = os.path.join(path_to_dataset, "train", "images")
+            path_to_train_annos = os.path.join(path_to_dataset, "train", "semantics")
+
+            img_filenames_train = common.get_img_fnames_in_dir(path_to_train_images)
+            anno_filenames_train = [
+                os.path.join(path_to_train_annos, fname) for fname in img_filenames_train
+            ]
+            self.filenames_train = list(zip(img_filenames_train, anno_filenames_train))
 
         # ------------- Prepare Training -------------
         # self.path_to_val_images = os.path.join(path_to_dataset, "val", "images")
@@ -97,17 +108,15 @@ class PDC(Dataset):
         # self.filenames_val = common.get_img_fnames_in_dir(self.path_to_val_images)
 
         # ------------- Prepare Testing -------------
-        self.path_to_test_images = os.path.join(path_to_dataset, "test", "images")
-        self.path_to_test_annos = os.path.join(path_to_dataset, "test", "semantics")
+        self.path_to_test_images = os.path.join(path_to_dataset, "val", "images")
+        self.path_to_test_annos = os.path.join(path_to_dataset, "val", "semantics")
         self.filenames_test = common.get_img_fnames_in_dir(self.path_to_test_images)
 
         # specify image transformations
         self.img_to_tensor = transforms.ToTensor()
 
     def get_train_item(self, idx: int) -> Dict:
-        path_to_current_img = os.path.join(
-            self.path_to_train_images, self.filenames_train[idx]
-        )
+        path_to_current_img, path_to_current_anno = self.filenames_train[idx]
         img_pil = Image.open(path_to_current_img)
         img = self.img_to_tensor(img_pil)  # [C x H x W] with values in [0, 1]
 
@@ -115,9 +124,6 @@ class PDC(Dataset):
             for augmentor_color_fn in self.augmentations_color:
                 img = augmentor_color_fn(img)
 
-        path_to_current_anno = os.path.join(
-            self.path_to_train_annos, self.filenames_train[idx]
-        )
         anno = np.array(Image.open(path_to_current_anno))  # dtype: int32
         if len(anno.shape) > 2:
             anno = anno[:, :, 0]
@@ -264,8 +270,7 @@ class PDCModule(pl.LightningDataModule):
                 img_normalizer=image_normalizer,
                 augmentations_geometric=train_augmentations_geometric,
                 augmentations_color=train_augmentations_color,
-                path_to_train_images=self.cfg["data"].get("path_to_train_images", None),
-                path_to_train_annos=self.cfg["data"].get("path_to_train_annos", None),
+                paths_to_train=self.cfg["data"].get("paths_to_train", None)
             )
 
             # # ----------- VAL -----------

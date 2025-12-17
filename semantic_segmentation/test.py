@@ -6,12 +6,13 @@ import pdb
 from typing import Dict
 
 import oyaml as yaml
-from pytorch_lightning import Trainer
+import lightning.pytorch as pl
+from lightning.pytorch.profilers import AdvancedProfiler
 
-from callbacks import (ConfigCallback, PostprocessorrCallback,
+from .callbacks import (ConfigCallback, PostprocessorrCallback,
                        VisualizerCallback, get_postprocessors, get_visualizers)
-from datasets import get_data_module
-from modules import get_backbone, get_criterion, module
+from .datasets import get_data_module
+from .modules import get_backbone, get_criterion, module
 
 
 def parse_args() -> Dict[str, str]:
@@ -36,7 +37,11 @@ def load_config(path_to_config_file: str) -> Dict:
 
 def main():
   args = parse_args()
-  cfg = load_config(args['config'])
+  test_segmentor(config_path=args['config'], ckpt_path=args['ckpt_path'], export_dir=args['export_dir'])
+  
+  
+def test_segmentor(config_path: str, ckpt_path: str, export_dir: str):
+  cfg = load_config(config_path)
 
   datasetmodule = get_data_module(cfg)
   criterion = get_criterion(cfg)
@@ -57,10 +62,13 @@ def main():
   config_callback = ConfigCallback(cfg)
 
   # Setup trainer
-  trainer = Trainer(default_root_dir=args['export_dir'],
-                    gpus=cfg['test']['n_gpus'],
-                    callbacks=[visualizer_callback, postprocessor_callback, config_callback])
-  trainer.test(seg_module, datasetmodule, ckpt_path=args['ckpt_path'])
+  trainer = pl.Trainer(default_root_dir=export_dir,
+                    accelerator=cfg["train"]["accelerator"],
+                    devices=cfg["train"]["devices"],
+                    callbacks=[visualizer_callback, postprocessor_callback, config_callback],
+                    profiler=AdvancedProfiler(dirpath=".", filename="profile.txt")
+                    )
+  trainer.test(seg_module, datasetmodule, ckpt_path=ckpt_path)
 
 
 if __name__ == '__main__':

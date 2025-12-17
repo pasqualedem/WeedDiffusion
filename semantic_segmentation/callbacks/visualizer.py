@@ -74,13 +74,13 @@ class SemanticMapVisualizer(BasicVisualizer):
   def __init__(self, classes_to_colors: Dict[int, List[int]]) -> None:
     self.classes_to_colors = classes_to_colors
 
-  def save_visualize_batch(self, path_to_dir: str, outputs: Dict[str, Any], batch: Dict[str, Any]) -> None:
+  def save_visualize_batch(self, path_to_dir: str, pl_module, batch: Dict[str, Any]) -> None:
     path_to_dir = os.path.join(path_to_dir, 'semantic_maps')
     if not os.path.exists(path_to_dir):
       os.makedirs(path_to_dir)
 
     with torch.no_grad():
-      logits = outputs['logits']
+      logits = pl_module.last_logits
       fnames = batch['fname']
       for logits_single_img, filename in zip(logits, fnames):
         pred = torch.argmax(logits_single_img, dim=0)
@@ -102,7 +102,7 @@ class GroundTruthVisualizer(BasicVisualizer):
   def __init__(self, classes_to_colors: Dict[int, List[int]]) -> None:
     self.classes_to_colors = classes_to_colors
 
-  def save_visualize_batch(self, path_to_dir: str, outputs: Dict[str, Any], batch: Dict[str, Any]) -> None:
+  def save_visualize_batch(self, path_to_dir: str, pl_module, batch: Dict[str, Any]) -> None:
     path_to_dir = os.path.join(path_to_dir, 'ground_truth')
     if not os.path.exists(path_to_dir):
       os.makedirs(path_to_dir)
@@ -129,14 +129,14 @@ class SemanticsOverlayCorrectIncorrectVisualizer(BasicVisualizer):
     self.tensor_to_pil_img = transforms.ToPILImage()
     self.classes_to_colors = classes_to_colors
 
-  def save_visualize_batch(self, path_to_dir: str, outputs: Dict[str, Any], batch: Dict[str, Any]) -> None:
+  def save_visualize_batch(self, path_to_dir: str, pl_module, batch: Dict[str, Any]) -> None:
     path_to_dir = os.path.join(path_to_dir, 'semantic_overlays_correct_incorrect')
     if not os.path.exists(path_to_dir):
       os.makedirs(path_to_dir)
 
     with torch.no_grad():
       imgs = batch['input_image_before_norm']
-      logits = outputs['logits']
+      logits = pl_module.last_logits
       annos = batch['anno']
       fnames = batch['fname']
       for input_image_before_norm, logits_single_img, anno, filename in zip(imgs, logits, annos, fnames):
@@ -176,14 +176,14 @@ class SemanticOverlayVisualizer(BasicVisualizer):
     self.tensor_to_pil_img = transforms.ToPILImage()
     self.classes_to_colors = classes_to_colors
 
-  def save_visualize_batch(self, path_to_dir: str, outputs: Dict[str, Any], batch: Dict[str, Any]) -> None:
+  def save_visualize_batch(self, path_to_dir: str, pl_module, batch: Dict[str, Any]) -> None:
     path_to_dir = os.path.join(path_to_dir, 'semantic_overlays')
     if not os.path.exists(path_to_dir):
       os.makedirs(path_to_dir)
 
     with torch.no_grad():
       imgs = batch['input_image_before_norm']
-      logits = outputs['logits']
+      logits = pl_module.last_logits
       fnames = batch['fname']
       for input_image_before_norm, logits_single_img, filename in zip(imgs, logits, fnames):
         pred = torch.argmax(logits_single_img, dim=0)
@@ -259,17 +259,18 @@ class VisualizerCallback(Callback):
     self.visualizers = visualizers
     self.vis_train_every_x_epochs = vis_train_every_x_epochs
     self.vis_val_every_x_epochs = vis_val_every_x_epochs
+    self.vis_test_every_x_steps = 50
 
-  def on_train_batch_end(self, trainer, pl_module, outputs: Dict[str, Any], batch, batch_idx, dataloader_idx):
+  def on_train_batch_end(self, trainer, pl_module, outputs: Dict[str, Any], batch, batch_idx):
     # visualize
     epoch = trainer.current_epoch
     if (epoch % self.vis_train_every_x_epochs) == 0 and (epoch != 0):
       path = os.path.join(trainer.log_dir, 'train', 'visualize', f'epoch-{epoch:06d}')
 
       for visualizer in self.visualizers:
-        visualizer.save_visualize_batch(path, outputs, batch)
+        visualizer.save_visualize_batch(path, pl_module, batch)
 
-  def on_validation_batch_end(self, trainer, pl_module, outputs: Dict[str, Any], batch, batch_idx, dataloader_idx):
+  def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
     # visualize
     epoch = trainer.current_epoch
 
@@ -277,14 +278,15 @@ class VisualizerCallback(Callback):
       path = os.path.join(trainer.log_dir, 'val', 'visualize', f'epoch-{epoch:06d}')
 
       for visualizer in self.visualizers:
-        visualizer.save_visualize_batch(path, outputs, batch)
+        visualizer.save_visualize_batch(path, pl_module, batch)
 
-  def on_test_batch_end(self, trainer, pl_module, outputs: Dict[str, Any], batch, batch_idx, dataloader_idx):
+  def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
     # visualize
     path = os.path.join(trainer.log_dir, 'visualize')
 
-    for visualizer in self.visualizers:
-      visualizer.save_visualize_batch(path, outputs, batch)
+    if (batch_idx % self.vis_test_every_x_steps) == 0:
+      for visualizer in self.visualizers:
+        visualizer.save_visualize_batch(path, pl_module, batch)
 
   # def on_predict_batch_end(self, trainer, pl_module, outputs: Dict[str, Any], batch, batch_idx, dataloader_idx):
   #   # visualize

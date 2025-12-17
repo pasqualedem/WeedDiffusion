@@ -14,7 +14,7 @@ import torchvision.transforms.functional as functional
 from numpy import imag
 from torchvision import transforms
 
-import datasets.augmentations_augmix as augmentations_augmix
+from . import augmentations_augmix
 
 
 def rgb_to_hsv(image: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:

@@ -3,8 +3,11 @@ experiment:
   id: phenobench
 data:
   name: PDC
-  path_to_dataset: ../../data/PhenoBench
-  path_to_train_images: ../../data/PhenoBench/train/images_37
+  path_to_dataset: data/PhenoBench
+  paths_to_train:
+    - 
+      - data/PhenoBench/train/images_37
+      - data/PhenoBench/train/semantics
   num_workers: 4
   image_normalizer:
     name: single_image_normalizer
@@ -44,15 +47,15 @@ train:
     random_global_hue:
       min_hue_factor: -0.0125
       max_hue_factor:  0.0125
-  geometric_data_augmentations:
-    random_hflip: null
-    random_vflip: null
-    random_scale:
-      min_scale: 1.0
-      max_scale: 1.1
-    random_crop:
-      height: 768
-      width: 768
+  # geometric_data_augmentations:
+  #   random_hflip: null
+  #   random_vflip: null
+  #   random_scale:
+  #     min_scale: 1.0
+  #     max_scale: 1.1
+  #   random_crop:
+  #     height: 768
+  #     width: 768
 val:
   geometric_data_augmentations: {}
   step_settings:
@@ -70,7 +73,7 @@ test:
   step_settings:
     - regular
   n_gpus: 1
-  batch_size: 1
+  batch_size: 4
   geometric_data_augmentations:
     center_crop:
       height: 1024

@@ -3,7 +3,7 @@ from typing import List, Dict
 
 import torch
 from torchvision import transforms
-import datasets.common as common
+from . import common
 
 
 class ImageNormalizer(ABC):

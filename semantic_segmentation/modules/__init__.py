@@ -3,10 +3,10 @@ from typing import Dict
 
 import torch.nn as nn
 
-from modules.deeplab.modeling import deeplabv3plus_resnet50
-from modules.erfnet.erfnet_modified import ERFNetModel
-from modules.unet.unet_model import UNet
-from modules.losses import get_criterion
+from .deeplab.modeling import deeplabv3plus_resnet50
+from .erfnet.erfnet_modified import ERFNetModel
+from .unet.unet_model import UNet
+from .losses import get_criterion
 
 
 def get_backbone(cfg: Dict) -> nn.Module:
