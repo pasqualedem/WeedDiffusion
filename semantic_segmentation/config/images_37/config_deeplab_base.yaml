@@ -6,7 +6,7 @@ data:
   path_to_dataset: data/PhenoBench
   paths_to_train:
     - 
-      - data/PhenoBench/train/images_37
+      - data/PhenoBench_subset/train/images_37
       - data/PhenoBench/train/semantics
   num_workers: 4
   image_normalizer:
