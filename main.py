@@ -14,6 +14,16 @@ def cli():
 
 
 # =========================
+# Preprocess
+# =========================
+
+@cli.command("make_subset")
+def make_subset():
+    from weeddiff.make_subset import make_subset as make_subset_fn
+    make_subset_fn()
+
+
+# =========================
 # TRAIN COMMAND GROUP
 # =========================
 

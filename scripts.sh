@@ -12,3 +12,7 @@ python main.py experiment --config ./semantic_segmentation/config/images_37/conf
 python main.py experiment --config ./semantic_segmentation/config/images_37/config_unet_base.yaml     --export_dir out/segmentation/images_37/unet_base #
 python main.py experiment --config ./semantic_segmentation/config/images_37/config_unet_geo.yaml      --export_dir out/segmentation/images_37/unet_geo
 python main.py experiment --config ./semantic_segmentation/config/images_37/config_unet_color.yaml    --export_dir out/segmentation/images_37/unet_color #
+
+# Condor
+
+condor_submit output=unet_base.log error=output=unet_base.log arguments='main.py experiment --config ./semantic_segmentation/config/images_37/config_unet_base.yaml     --export_dir out/segmentation/images_37/unet_base' condor
