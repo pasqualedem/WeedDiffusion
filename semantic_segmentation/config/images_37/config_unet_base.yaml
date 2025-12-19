@@ -17,7 +17,7 @@ backbone:
   pretrained: false
 train:
   accelerator: gpu
-  devices: [2]
+  devices: [0]
   step_settings:
     - regular
   max_epoch: 200
