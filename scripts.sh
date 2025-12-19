@@ -22,3 +22,9 @@ condor_submit output=unet_base.log error=output=unet_base.log arguments='main.py
 python main.py experiment --config semantic_segmentation/config/weeddiff_37/config_erfnet_geocolor.yaml --export_dir out/segmentation/weeddiff_37/erfnet_geocolor
 python main.py experiment --config semantic_segmentation/config/weeddiff_37/config_erfnet_base.yaml     --export_dir out/segmentation/weeddiff_37/erfnet_base
 
+python main.py experiment --config semantic_segmentation/config/weeddiff_37/config_deeplab_geocolor.yaml --export_dir out/segmentation/weeddiff_37/deeplab_geocolor
+python main.py experiment --config semantic_segmentation/config/weeddiff_37/config_deeplab_base.yaml     --export_dir out/segmentation/weeddiff_37/deeplab_base
+
+python main.py experiment --config semantic_segmentation/config/weeddiff_37/config_unet_geocolor.yaml --export_dir out/segmentation/weeddiff_37/unet_geocolor
+python main.py experiment --config semantic_segmentation/config/weeddiff_37/config_unet_base.yaml     --export_dir out/segmentation/weeddiff_37/unet_base
+
