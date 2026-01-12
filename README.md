@@ -1,146 +1,295 @@
-🌿 **DreamAug: DreamBooth-based Augmentation for Crops and Weeds Segmentation**
+# 🌿 WeedDiffusion
 
-DreamAug is a synthetic data augmentation framework for semantic segmentation in precision agriculture. It leverages class-specific DreamBooth fine-tuning and mask-aware augmentation to enrich crop and weed datasets with high-fidelity, controllable samples, reducing annotation effort and improving model performance in low-data regimes.
+**A Dual-Branch Synthetic Augmentation Framework for Weed Mapping**
 
-🧩 **Overview**
-![DreamAug Pipeline](./pipeline.png)
+WeedDiffusion is a synthetic data augmentation framework for semantic segmentation in precision agriculture. It leverages class-specific DreamBooth fine-tuning and mask-aware augmentation to enrich crop and weed datasets with high-fidelity, controllable samples, reducing annotation effort and improving model performance in low-data regimes.
 
-DreamAug consists of two main branches:
-- Crop Augmentation: Inpainting of masked regions in real images using a DreamBooth-tuned diffusion model trained on full field scenes.
-- Weed Augmentation: Generation of individual synthetic weeds via a second DreamBooth model, segmentation with SAM, and controlled insertion into background regions of real images.
+## 🧩 Overview
+
+![WeedDiffusion Pipeline](./pipeline.png)
+
+WeedDiffusion consists of two main augmentation branches:
+
+- **Crop Augmentation**: Inpainting of masked regions in real images using a DreamBooth-tuned diffusion model trained on full field scenes
+- **Weed Augmentation**: Generation of individual synthetic weeds via a second DreamBooth model, segmentation with SAM, and controlled insertion into background regions of real images
 
 Each generated image is paired with a corresponding semantic mask, making the data ready-to-use for supervised segmentation training.
 
-🛠 **Installation**
+## 🛠 Installation
 
-Before installing dependencies, we recommend creating a clean virtual environment using conda to avoid package conflicts:
+WeedDiffusion uses [uv](https://github.com/astral-sh/uv) for fast, reliable Python package management. Everything is self-contained—no external repositories or manual dependency management required.
+
 ```bash
-conda create -n dreamaug python=3.10 -y
-conda activate dreamaug
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone the repository
+git clone <repository-url>
+cd weeddiffusion
+
+# Create environment and install dependencies
+uv sync
 ```
 
-Then, clone the Hugging Face Diffusers repository and install the required libraries:
-```bash
-git clone https://github.com/huggingface/diffusers
-cd diffusers/examples/dreambooth
-pip install -r requirements.txt
-```
+**Requirements**: CUDA-enabled GPU
 
-Note: Ensure that your system has a CUDA-enabled GPU (≥12GB VRAM) and the appropriate PyTorch version installed. You can install GPU-enabled PyTorch following instructions from https://pytorch.org/get-started/locally.
+## 📦 Dataset
 
-DreamAug is built on top of the PhenoBench dataset, which provides high-resolution UAV images and pixel-level annotations for crop and weed segmentation.
-You can download the dataset by visiting the official project page:
+WeedDiffusion is built on the PhenoBench dataset, which provides high-resolution UAV images and pixel-level annotations for crop and weed segmentation.
 
+Download the dataset from the official project page:
 🔗 https://www.phenobench.org/dataset.html
 
-🚀 **Usage**
-
-To replicate the DreamAug pipeline and segmentation experiments, follow the steps below.
-
-⚠️ Note: DreamBooth models trained are not included in this repository due to storage limitations. 
-
-To train the crop-specific DreamBooth model, you can use pre-selected or custom sugar beet images from the PhenoBench dataset.
-
-There are three ways to obtain suitable crop-only training images:
-- Predefined set: use the ready-to-train image set available in `dreambooth/training/subset_crops`. These are the exact 25 images used in our experiments.
-- Custom selection by clustering: use the notebook `dreambooth/training/utils/cluster.ipynb` to extract visually distinct images from the three acquisition dates (05-15, 05-26, 06-05).
-- Weed-aware filtering: if you want to avoid weed contamination, you can filter scenes with low weed presence using `dreambooth/training/utils/count_weeds.ipynb`.
-
-Once your image set is ready, launch the DreamBooth fine-tuning using the provided notebook: `dreambooth/training/dreambooth.ipynb`. This notebook performs subject-specific training and saves the resulting DreamBooth model locally under: `models/model_crops/`. You can use it to synthetically augment real field images by inpainting masked regions with realistic sugar beet plants.
-
-To proceed:
-- Select base images for inpainting: you can use the provided image list in `augmentation/images_to_modify/`, or manually choose a subset of real field images from the PhenoBench dataset.
-- Launch the inpainting pipeline using the notebook: `dreambooth/augmentation/inpainting.ipynb`
-
-Augmented images will be saved in `augmentation/inpainting_outputs/`.
-
-The inpainting notebook updates the RGB image, but the semantic mask must also be updated so that the new synthetic crops are correctly labelled as class 1 (crop).  
-Run dreambooth/augmentation/mask_reconstruction_crops.ipynb to automate this step. The updated masks are generated by combining the original semantic label map with the newly inpainted crop region.  
-The resulting files are saved to `augmentation/combined_masks/`
-
-To create synthetic weed instances, you need to fine-tune a second DreamBooth model specifically on weed imagery.
-
-- Use the 12 annotated weed patches in `dreambooth/training/subset_weeds/`. These are the exact 512×512 crops used in our experiments.
-- Fine-tune a new DreamBooth model using the notebook: `dreambooth/training/dreambooth.ipynb`, just as for crops.
-  - Set the instance prompt to `"sks weed"`
-  - Set the output directory to `models/model_weeds/`
-
-Once the model_weeds has been trained, you can use it to synthesize standalone weed images:
-
-- Run the generation notebook: `dreambooth/augmentation/weed_generation.ipynb`. This will produce 1024×1024 images, each containing one or more synthetic weed instances.
-- Segment individual weed objects using SAM by running: `dreambooth/augmentation/weed_extraction.ipynb`. This step extracts clean RGBA cut-outs and their corresponding binary masks.
-
-*SAM Requirement*: To use the Segment Anything Model (SAM), make sure to download the ViT-H checkpoint from the official Meta repository: save the file `sam_vit_h_4b8939.pth` into the `dreambooth/augmentation/` directory.
-
-You can download it from:
-🔗 https://github.com/facebookresearch/segment-anything#model-checkpoints
-
-Once both synthetic crops and individual weed cut-outs have been prepared, the final step is to inject weeds into the previously augmented crop scenes.
-
-To proceed run the notebook `dreambooth/augmentation/weed_injection.ipynb`. This script places weeds in valid background regions of the inpainted images, ensuring no overlap with crops or existing weeds. The associated segmentation masks are updated accordingly, assigning class 2 (weed) to the injected regions.
-
-The final augmented dataset, containing both synthetic crops and weeds, will be saved as:
-- Augmented RGB images: `augmentation/final_images/`
-- Corresponding semantic masks: `augmentation/final_masks/`
-
-Before training the segmentation models, we remap the semantic labels to align with the simplified class definitions used for evaluation. In the original PhenoBench annotations, the semantic mask labels include:
-- 1 = Crop
-- 2 = Weed
-- 3 = PartialCrop
-- 4 = PartialWeed
-
-Since our segmentation task considers only three classes — background (0), crop (1), and weed (2) — we merge the partial classes as follows:
-- 3 (PartialCrop) → 1 (Crop)
-- 4 (PartialWeed) → 2 (Weed)
-
-To perform this remapping, run the notebook `dreambooth/augmentation/remap_semantics.ipynb`.
-
-🧠 **Semantic Segmentation**
-
-To evaluate the impact of DreamAug on segmentation performance, we trained and tested three semantic segmentation models: ERFNet, DeepLabV3+, and UNet, using the official PhenoBench baselines.
-
-⚠️ Note: ERFNet, DeepLabV3+, and UNet models are not included in this repository due to storage limitations. 
-
-First, clone the PhenoBench baseline repository and set up the environment:
-```bash
-git clone https://github.com/PRBonn/phenobench-baselines
-cd phenobench-baselines/semantic_segmentation
-conda create -n phenobench_semseg python=3.8 -y
-conda activate phenobench_semseg
-pip install -r ./setup/requirements.txt
-pip install torch==1.10.1+cu113 torchvision==0.11.2+cu113 torchaudio==0.10.1+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
-pip install setuptools==59.5.0
+After downloading, your data directory should look like:
 ```
-⚠️ Note: The PyTorch installation may vary depending on your local CUDA version.
-
-To reproduce our experiments, replace and configure the following components:
-- Replace config folder: copy the custom `config/` directory from `dreamaug/classification/config/` into the cloned semantic_segmentation directory.
-- Use the prepared datasets: place the `dataset_37` and `dataset_158` folders (included in `dreamaug/classification/`) into the root of the semantic_segmentation directory.
-- Override baseline code: replace the original `module.py`, `pcd.py`, and `train.py` files with the modified versions provided in `dreamaug/classification/`.
-- Set dataset paths: open each config YAML file inside `config/` and set the correct paths for your dataset folders (dataset_37 or dataset_158) under the data_root field.
-
-You can now launch model training with the following commands:
-```bash
-# ERFNet
-python train.py --config ./config/config_erfnet.yaml --export_dir <path-to-export-directory>
-
-# DeepLabV3+
-python train.py --config ./config/config_deeplab.yaml --export_dir <path-to-export-directory>
-
-# UNet
-python train.py --config ./config/config_unet.yaml --export_dir <path-to-export-directory>
+data/
+├── PhenoBench/
+│   ├── train/
+│   │   ├── images/
+│   │   └── semantics/
+│   └── test/
+└── PhenoBench_augmented/
+    └── dreambooth_37/
+        └── augmentation/
+            ├── final_images/
+            └── final_masks/
 ```
 
-After training, evaluate the trained models using:
+The `PhenoBench_augmented` directory contains pre-generated synthetic data. If you want to generate your own augmented data from scratch, you can skip downloading this and follow the generation steps below.
+
+## 🚀 Quick Start
+
+All operations are performed through the unified CLI interface in `main.py`.
+
+### 1. Prepare Training Subsets
+
 ```bash
-# ERFNet
-python test.py --config ./config/config_erfnet.yaml --ckpt_path <path-to-export-ckpt> --export_dir <path-to-results>
-
-# DeepLabV3+
-python test.py --config ./config/config_deeplab.yaml --ckpt_path <path-to-export-ckpt> --export_dir <path-to-results>
-
-# UNet
-python test.py --config ./config/config_unet.yaml --ckpt_path <path-to-export-ckpt> --export_dir <path-to-results>
+uv run python main.py make_subset
 ```
 
-Each test will output per-class IoUs and mIoU, which can be used to compare performance across baseline and DreamAug-augmented settings.
+This extracts suitable crop and weed images from the PhenoBench dataset. The subset will be saved to `data/PhenoBench_subset/train/images_37/`.
+
+**This step is required** even if you're using pre-generated augmented data, as the subset is used during segmentation training.
+
+### Option A: Using Pre-generated Augmented Data
+
+If you downloaded the pre-generated augmented images, skip to [Step 4: Train Segmentation Models](#4-train-segmentation-models).
+
+### Option B: Generate Your Own Augmented Data
+
+Follow steps 2-3 to create augmented data from scratch.
+
+### 2. Train DreamBooth Models
+
+Train the crop-specific model:
+```bash
+uv run python main.py train diffuser crop [--extra-args]
+```
+
+Train the weed-specific model:
+```bash
+uv run python main.py train diffuser weed [--extra-args]
+```
+
+### 3. Generate Synthetic Data
+
+Generate augmented crops (inpainting + mask reconstruction):
+```bash
+uv run python main.py generate crop \
+  --checkpoint <path-to-crop-model> \
+  --root <output-directory> \
+  --input_images data/PhenoBench_subset/train/images_37
+```
+
+Generate synthetic weeds:
+```bash
+uv run python main.py generate weed \
+  --checkpoint <path-to-weed-model> \
+  --root <output-directory> \
+  --num_weeds 5
+```
+
+### 4. Train Segmentation Models
+
+Train a semantic segmentation model (ERFNet, DeepLabV3+, or UNet):
+```bash
+uv run python main.py train segmentor \
+  --config <path-to-config.yaml> \
+  --export_dir <output-directory>
+```
+
+Optional flags:
+- `--ckpt_path`: Resume from checkpoint
+- `--resume`: Resume training from last checkpoint
+
+### 5. Evaluate Models
+
+Test a trained segmentation model:
+```bash
+uv run python main.py test \
+  --config <path-to-config.yaml> \
+  --ckpt_path <path-to-checkpoint> \
+  --export_dir <results-directory>
+```
+
+### 6. Run Full Experiments
+
+Train and test in one command:
+```bash
+uv run python main.py experiment \
+  --config <path-to-config.yaml> \
+  --export_dir <output-directory>
+```
+
+This automatically:
+1. Trains the segmentation model
+2. Identifies the best checkpoint
+3. Evaluates on the test set
+4. Saves results to the export directory
+
+## 📊 Reproducing Paper Results
+
+To reproduce all segmentation experiments from the paper, use the provided `scripts.sh`:
+
+```bash
+# Make the script executable
+chmod +x scripts.sh
+
+# Run all experiments
+./scripts.sh
+```
+
+This will train and evaluate all model configurations:
+
+**Baseline (37 training images)**:
+- ERFNet: base, geo, color, geocolor variants
+- DeepLabV3+: base, geo, color, geocolor variants
+- UNet: base, geo, color, geocolor variants
+
+**WeedDiffusion augmented (37 + synthetic)**:
+- ERFNet: base, geocolor variants
+- DeepLabV3+: base, geocolor variants
+- UNet: base, geocolor variants
+
+All results will be saved to `out/segmentation/` with separate subdirectories for each experiment.
+
+## 📋 Configuration
+
+Segmentation models are configured via YAML files in `semantic_segmentation/config/`. The framework supports multiple augmentation strategies:
+
+- **base**: RGB images only
+- **geo**: RGB + geometric augmentations (flip, scale, crop)
+- **color**: RGB + color augmentations (brightness, contrast, saturation, hue)
+- **geocolor**: RGB + geometric + color augmentations
+
+### Key Configuration Parameters
+
+```yaml
+data:
+  path_to_dataset: data/PhenoBench
+  paths_to_train:
+    - [data/PhenoBench_subset/train/images_37, data/PhenoBench/train/semantics]
+    - [data/PhenoBench_augmented/dreambooth_37/augmentation/final_images, 
+       data/PhenoBench_augmented/dreambooth_37/augmentation/final_masks]
+
+backbone:
+  name: deeplabv3plus_resnet50  # or erfnet, unet
+  num_classes: 3
+
+train:
+  max_epoch: 200
+  learning_rate: 5.0e-4
+  batch_size: 4
+  class_weights: [1.47, 5.06, 10.02]  # Background, Crop, Weed
+  
+  geometric_data_augmentations:
+    random_hflip: null
+    random_vflip: null
+    random_scale: {min_scale: 1.0, max_scale: 1.1}
+    random_crop: {height: 768, width: 768}
+  
+  color_data_augmentations:
+    random_global_brightness: {min_brightness_factor: 0.6, max_brightness_factor: 1.4}
+    random_global_contrast: {min_contrast_factor: 0.6, max_contrast_factor: 1.4}
+    # ... additional augmentations
+```
+
+Update the `data.path_to_dataset` and `data.paths_to_train` fields to match your local dataset paths.
+
+## 🎯 Semantic Classes
+
+The framework uses three semantic classes:
+- **0**: Background
+- **1**: Crop (includes PartialCrop from original annotations)
+- **2**: Weed (includes PartialWeed from original annotations)
+
+Class weights are automatically computed to handle class imbalance in the training data.
+
+## 📊 Evaluation Metrics
+
+Models are evaluated using:
+- **Per-class IoU** (Intersection over Union)
+- **mIoU** (mean IoU across all classes)
+
+Results are saved to the specified export directory:
+```
+<export_dir>/
+├── train/
+│   └── lightning_logs/
+│       └── version_X/
+│           ├── checkpoints/
+│           └── metrics.csv
+└── test/
+    ├── predictions/
+    ├── visualizations/
+    └── results.json
+```
+
+## 🔧 Advanced Usage
+
+### Custom Training Arguments
+
+Pass additional arguments to DreamBooth training:
+```bash
+uv run python main.py train diffuser crop \
+  --learning_rate=1e-6 \
+  --max_train_steps=800
+```
+
+### Resume Training
+
+Resume segmentation model training from a checkpoint:
+```bash
+uv run python main.py train segmentor \
+  --config semantic_segmentation/config/images_37/config_erfnet_base.yaml \
+  --export_dir ./experiments/run_01 \
+  --ckpt_path ./checkpoints/last.ckpt \
+  --resume
+```
+
+### Single Model Training
+
+Train a specific model configuration:
+```bash
+uv run python main.py experiment \
+  --config semantic_segmentation/config/weeddiff_37/config_deeplab_geocolor.yaml \
+  --export_dir out/segmentation/custom_run
+```
+
+## 📝 Notes
+
+- **DreamBooth models**: Not included due to storage limitations—train them using the provided commands or use pre-generated augmented data
+- **SAM checkpoint**: Automatically handled by the pipeline (`sam_vit_h_4b8939.pth`)
+- **Reproducibility**: Set `seed` in config files for deterministic results
+
+## 🤝 Citation
+
+If you use WeedDiffusion in your research, please cite the original work:
+
+```bibtex
+Coming soon
+```
+
+## 📄 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
