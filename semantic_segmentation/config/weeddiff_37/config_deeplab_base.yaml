@@ -23,7 +23,7 @@ train:
     - regular
   max_epoch: 200
   accelerator: gpu
-  devices: [2]
+  devices: [0]
   benchmark: true
   loss: xentropy
   learning_rate: 5.0e-4
