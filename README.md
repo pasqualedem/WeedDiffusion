@@ -57,6 +57,30 @@ data/
 
 The `PhenoBench_augmented` directory contains pre-generated synthetic data. If you want to generate your own augmented data from scratch, you can skip downloading this and follow the generation steps below.
 
+## 🧠 Pretrained Checkpoints
+
+All trained checkpoints are hosted on the Hugging Face Hub:
+
+🔗 **https://huggingface.co/pasqualedem/weeddiffusion**
+
+| Path | Contents |
+|------|----------|
+| `crops/` | DreamBooth Stable Diffusion v1.5 pipeline for the **crop inpainting** branch (prompt `sks crop`) |
+| `weeds/` | DreamBooth Stable Diffusion v1.5 pipeline for the **weed generation** branch (prompt `sks weed`) |
+| `segmentation/` | Best-mIoU segmentation checkpoints per experiment (`images_37/` real-only, `weeddiff_37/` augmented) |
+
+Download the whole repository (or a subset) with the `huggingface_hub` CLI:
+
+```bash
+# Everything into ./hf_checkpoints (crops/, weeds/, segmentation/)
+uv run hf download pasqualedem/weeddiffusion --local-dir hf_checkpoints
+
+# Or only the DreamBooth generative models
+uv run hf download pasqualedem/weeddiffusion --include "crops/*" --include "weeds/*" --local-dir hf_checkpoints
+```
+
+The generation commands take the model path via `--checkpoint`, so after downloading you can point them straight at the folders, e.g. `--checkpoint hf_checkpoints/crops` and `--checkpoint hf_checkpoints/weeds` (these correspond to the local paths `out/model_crops` and `out/model_weeds`). Only inference weights are published (optimizer / training-resume state is omitted) to keep the download small.
+
 ## 🚀 Quick Start
 
 All operations are performed through the unified CLI interface in `main.py`.
@@ -278,7 +302,7 @@ uv run python main.py experiment \
 
 ## 📝 Notes
 
-- **DreamBooth models**: Not included due to storage limitations—train them using the provided commands or use pre-generated augmented data
+- **DreamBooth models**: Published on the [Hugging Face Hub](https://huggingface.co/pasqualedem/weeddiffusion) (`crops/`, `weeds/`). You can download them (see [Pretrained Checkpoints](#-pretrained-checkpoints)), train them using the provided commands, or use the pre-generated augmented data
 - **SAM checkpoint**: Automatically handled by the pipeline (`sam_vit_h_4b8939.pth`)
 - **Reproducibility**: Set `seed` in config files for deterministic results
 
