@@ -86,9 +86,6 @@
         <a class="button link-btn" href="#">
           <span class="icon"><i class="fas fa-file-pdf"></i></span><span>Paper</span>
         </a>
-        <a class="button link-btn" href="#">
-          <span class="icon"><i class="ai ai-arxiv"></i></span><span>arXiv</span>
-        </a>
         <a class="button link-btn" href="https://github.com/pasqualedem/WeedDiffusion" target="_blank">
           <span class="icon"><i class="fab fa-github"></i></span><span>Code</span>
         </a>
@@ -173,41 +170,19 @@
 
 <hr class="soft">
 
-<!-- ===================== PIPELINE EXAMPLE ===================== -->
+<!-- ===================== QUALITATIVE: CROP INPAINTING ===================== -->
 <section class="section">
-  <div class="container is-max-desktop">
-    <h2 class="title is-3 has-text-centered accent">Weed Branch, Step by Step</h2>
-    <p class="content-max has-text-centered" style="color:#5a6472; margin-bottom:1.4rem;">
-      A single instance flowing through the full pipeline — same image throughout, mask reconstructed at each stage.
-    </p>
-    <div class="content-max">
-      <div class="stage-grid">
-        <figure class="stage">
-          <img src="static/images/ex_original.png" alt="original image">
-          <figcaption><span class="num">1</span>Original field image</figcaption>
-        </figure>
-        <figure class="stage">
-          <img src="static/images/ex_inpainted.png" alt="inpainted image">
-          <figcaption><span class="num">2</span>Crop-inpainted image</figcaption>
-        </figure>
-        <figure class="stage">
-          <img src="static/images/ex_weed_bg.png" alt="generated weed">
-          <figcaption><span class="num">3</span>DreamBooth-generated weed</figcaption>
-        </figure>
-        <figure class="stage">
-          <img src="static/images/ex_weed_seg.png" alt="SAM-segmented weed">
-          <figcaption><span class="num">4</span>SAM-segmented weed</figcaption>
-        </figure>
-        <figure class="stage">
-          <img src="static/images/ex_final.png" alt="final augmented image">
-          <figcaption><span class="num">5</span>Final augmented image</figcaption>
-        </figure>
-        <figure class="stage">
-          <img src="static/images/ex_final_mask.png" alt="reconstructed semantic mask">
-          <figcaption><span class="num">6</span>Reconstructed mask (crop / weed)</figcaption>
-        </figure>
-      </div>
-    </div>
+  <div class="container is-max-desktop has-text-centered">
+    <h2 class="title is-3 accent">Crop Inpainting Examples</h2>
+    <figure>
+      <img src="static/images/examples.png" alt="Crop inpainting qualitative examples" style="border-radius:10px; border:1px solid #e6e9ee;">
+      <figcaption class="figure-caption content-max">
+        Two examples of the inpainting-based crop augmentation. <b>Top row:</b> original field image, the masked
+        region (red overlay) to be inpainted, and the inpainted result. <b>Bottom row:</b> the corresponding ground
+        truths, with <b>cyan</b> = crop and <b>red</b> = weed. The inpainted crops blend seamlessly into the scene
+        while the semantic mask is updated to stay label-consistent.
+      </figcaption>
+    </figure>
   </div>
 </section>
 
