@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WeedDiffusion: A Dual-Branch Synthetic Augmentation Framework for Weed Mapping</title>
+  <meta name="description" content="WeedDiffusion — a dual-branch DreamBooth + SAM synthetic augmentation framework for crop/weed semantic segmentation. ICPR 2026.">
+
+  <meta property="og:title" content="WeedDiffusion: A Dual-Branch Synthetic Augmentation Framework for Weed Mapping"/>
+  <meta property="og:description" content="Class-specific DreamBooth generation + SAM cut-and-paste for crop/weed segmentation. ICPR 2026."/>
+  <meta property="og:image" content="static/images/pipeline.png"/>
+  <meta property="og:type" content="website"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+
+  <style>
+    :root { --leaf:#2e7d32; --leaf-dark:#1b5e20; --leaf-light:#e8f5e9; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Noto Sans', sans-serif; color:#1f2733; }
+    .title, .subtitle, .publication-title { font-family: 'Google Sans','Noto Sans',sans-serif; }
+    .hero-title { font-weight:700; line-height:1.12; }
+    .accent { color: var(--leaf); }
+    .section { padding: 2.2rem 1.5rem; }
+    .author-block a { color: var(--leaf-dark); }
+    .author-block a:hover { color: var(--leaf); }
+    .link-btn { background:#20232a; color:#fff; border-radius:999px; margin:.25rem; font-weight:500; }
+    .link-btn:hover { background: var(--leaf-dark); color:#fff; }
+    .figure-caption { color:#5a6472; font-size:.92rem; margin-top:.6rem; }
+    .content-max { max-width: 900px; margin: 0 auto; }
+    .stage-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:.6rem; }
+    @media (max-width: 640px){ .stage-grid { grid-template-columns: repeat(2,1fr);} }
+    .stage figcaption { font-size:.8rem; color:#5a6472; margin-top:.3rem; text-align:center; }
+    .stage img { border-radius:8px; border:1px solid #e6e9ee; width:100%; display:block; }
+    .stage .num { display:inline-block; background:var(--leaf); color:#fff; border-radius:999px; width:1.35rem; height:1.35rem; line-height:1.35rem; font-size:.78rem; font-weight:700; text-align:center; margin-right:.35rem;}
+    table.res { width:100%; border-collapse:collapse; font-size:.86rem; }
+    table.res th, table.res td { padding:.42rem .55rem; text-align:center; border-bottom:1px solid #edf0f3; }
+    table.res thead th { border-bottom:2px solid #cfd6dd; }
+    table.res td.arch, table.res td.reg { text-align:left; }
+    table.res tr.best td { background: var(--leaf-light); }
+    table.res b { color: var(--leaf-dark); }
+    .arch-sep td { border-top:2px solid #cfd6dd; }
+    .bibtex-box { background:#0f1115; color:#e6e9ee; border-radius:10px; padding:1.1rem 1.3rem; overflow-x:auto; font-size:.85rem; }
+    .conf-tag { display:inline-block; background:var(--leaf-light); color:var(--leaf-dark); font-weight:700; border-radius:999px; padding:.2rem .9rem; letter-spacing:.02em; }
+    hr.soft { background:#eef1f4; height:1px; }
+  </style>
+</head>
+<body>
+
+<!-- ===================== HERO ===================== -->
+<section class="hero">
+  <div class="hero-body" style="padding-bottom:1.2rem;">
+    <div class="container is-max-desktop has-text-centered">
+      <p style="margin-bottom:1rem;"><span class="conf-tag">ICPR&nbsp;2026</span></p>
+      <h1 class="title is-2 hero-title">
+        🌿 <span class="accent">WeedDiffusion</span><br>
+        <span class="is-size-4">A Dual-Branch Synthetic Augmentation Framework for Weed Mapping</span>
+      </h1>
+
+      <div class="is-size-5 author-block" style="margin-top:1.2rem;">
+        <span>
+          <a href="https://orcid.org/0000-0001-8935-9156" target="_blank">Pasquale De Marinis</a><sup>1</sup>,
+        </span>
+        <span>
+          <a href="https://orcid.org/0009-0006-5348-2180" target="_blank">Antonio Iammarino</a><sup>1</sup>,
+        </span>
+        <span>
+          <a href="https://orcid.org/0000-0002-6489-8628" target="_blank">Gennaro Vessio</a><sup>1</sup>,
+        </span>
+        <span>
+          <a href="https://uniba.it" target="_blank">Giovanna Castellano</a><sup>1</sup>
+        </span>
+      </div>
+
+      <div class="is-size-6" style="margin-top:.6rem; color:#5a6472;">
+        <sup>1</sup>Department of Computer Science, University of Bari Aldo Moro, Italy
+      </div>
+
+      <!-- Buttons -->
+      <div class="buttons is-centered" style="margin-top:1.4rem;">
+        <!-- TODO: replace href="#" with the arXiv / camera-ready PDF link once available -->
+        <a class="button link-btn" href="#">
+          <span class="icon"><i class="fas fa-file-pdf"></i></span><span>Paper</span>
+        </a>
+        <a class="button link-btn" href="#">
+          <span class="icon"><i class="ai ai-arxiv"></i></span><span>arXiv</span>
+        </a>
+        <a class="button link-btn" href="https://github.com/pasqualedem/WeedDiffusion" target="_blank">
+          <span class="icon"><i class="fab fa-github"></i></span><span>Code</span>
+        </a>
+        <a class="button link-btn" href="https://huggingface.co/pasqualedem/weeddiffusion" target="_blank">
+          <span class="icon">🤗</span><span>Models</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TEASER ===================== -->
+<section class="section" style="padding-top:.5rem;">
+  <div class="container is-max-desktop has-text-centered">
+    <figure>
+      <img src="static/images/pipeline.png" alt="WeedDiffusion pipeline overview" style="border-radius:10px; border:1px solid #e6e9ee;">
+      <figcaption class="figure-caption content-max">
+        <b>Overview of the WeedDiffusion pipeline.</b> The <b>top branch</b> augments crops by inpainting masked
+        border regions of real field images with a DreamBooth-tuned Stable Diffusion model (25 full-field crop
+        images). The <b>bottom branch</b> generates synthetic weeds with a second DreamBooth model (12 cropped weed
+        images), extracts them with SAM, and pastes them into background regions — automatically reconstructing the
+        semantic mask at every step.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== ABSTRACT ===================== -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered accent">Abstract</h2>
+    <div class="content-max has-text-justified is-size-5">
+      <p>
+        Precision agriculture depends on accurate crop–weed discrimination to enable efficient weed control and
+        sustainable crop production. However, building large-scale annotated datasets is time-consuming and costly.
+        We introduce <b>WeedDiffusion</b>, a data-augmentation framework that leverages DreamBooth-tuned diffusion
+        models to generate training data for crop and weed segmentation. Our approach combines two complementary
+        strategies: <i>(i)</i> inpainting crop regions using a DreamBooth model trained on in-distribution crop
+        imagery, and <i>(ii)</i> cut-and-paste generation of weed instances, created by a second fine-tuned
+        DreamBooth model and segmented with the Segment Anything Model. The augmented images are paired with
+        automatically reconstructed masks for training semantic segmentation models.
+      </p>
+      <p>
+        Experiments show that WeedDiffusion produces morphologically realistic samples and consistently improves the
+        mean Intersection-over-Union across different segmentation architectures, with the largest gains on the
+        underrepresented weed class. Ablation studies vary the size of both the synthetic set and the real data used
+        to train the generator, confirming the approach's data efficiency and scalability. WeedDiffusion offers a
+        scalable, model-agnostic solution for enhancing agricultural datasets through targeted, high-fidelity
+        synthetic augmentation.
+      </p>
+    </div>
+  </div>
+</section>
+
+<hr class="soft">
+
+<!-- ===================== METHOD / BRANCHES ===================== -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered accent">Two Complementary Branches</h2>
+    <div class="columns is-variable is-6 content-max" style="margin-top:.5rem;">
+      <div class="column">
+        <h3 class="title is-5">🖌️ Crop Generation Branch</h3>
+        <p class="has-text-justified">
+          A Stable Diffusion v1.5 model, fine-tuned via DreamBooth on full-field crop scenes, <b>inpaints</b> field
+          border regions with morphologically accurate crops. Inpainting preserves spatial continuity with the
+          original image while the semantic mask is updated accordingly, guaranteeing pixel-level label consistency.
+        </p>
+      </div>
+      <div class="column">
+        <h3 class="title is-5">🌱 Weed Generation Branch</h3>
+        <p class="has-text-justified">
+          A separate DreamBooth model <b>generates individual synthetic weeds</b>, which are segmented with
+          <b>SAM</b> and composited into background-only regions of the crop-augmented images under
+          biologically-informed constraints (no overlap with crops or image borders). Masks are merged into the
+          ground truth.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="soft">
+
+<!-- ===================== PIPELINE EXAMPLE ===================== -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered accent">Weed Branch, Step by Step</h2>
+    <p class="content-max has-text-centered" style="color:#5a6472; margin-bottom:1.4rem;">
+      A single instance flowing through the full pipeline — same image throughout, mask reconstructed at each stage.
+    </p>
+    <div class="content-max">
+      <div class="stage-grid">
+        <figure class="stage">
+          <img src="static/images/ex_original.png" alt="original image">
+          <figcaption><span class="num">1</span>Original field image</figcaption>
+        </figure>
+        <figure class="stage">
+          <img src="static/images/ex_inpainted.png" alt="inpainted image">
+          <figcaption><span class="num">2</span>Crop-inpainted image</figcaption>
+        </figure>
+        <figure class="stage">
+          <img src="static/images/ex_weed_bg.png" alt="generated weed">
+          <figcaption><span class="num">3</span>DreamBooth-generated weed</figcaption>
+        </figure>
+        <figure class="stage">
+          <img src="static/images/ex_weed_seg.png" alt="SAM-segmented weed">
+          <figcaption><span class="num">4</span>SAM-segmented weed</figcaption>
+        </figure>
+        <figure class="stage">
+          <img src="static/images/ex_final.png" alt="final augmented image">
+          <figcaption><span class="num">5</span>Final augmented image</figcaption>
+        </figure>
+        <figure class="stage">
+          <img src="static/images/ex_final_mask.png" alt="reconstructed semantic mask">
+          <figcaption><span class="num">6</span>Reconstructed mask (crop / weed)</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="soft">
+
+<!-- ===================== RESULTS ===================== -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered accent">Results</h2>
+    <p class="content-max has-text-centered" style="color:#5a6472; margin-bottom:1.2rem;">
+      Semantic-segmentation IoU (%) on the PhenoBench validation set (772 images). All models start from the same
+      <b>37 real images</b>; WeedDiffusion adds <b>120 synthetic samples</b>. Best row per architecture highlighted.
+    </p>
+    <div class="content-max" style="overflow-x:auto;">
+      <table class="res">
+        <thead>
+          <tr>
+            <th class="arch" style="text-align:left;">Architecture</th>
+            <th style="text-align:left;">Online aug.</th>
+            <th style="text-align:left;">Offline aug.</th>
+            <th>BG</th><th>Crop</th><th>Weed</th><th>Mean</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- ERFNet -->
+          <tr><td class="arch" rowspan="4">ERFNet</td><td class="reg">geo+color</td><td class="reg">none</td><td>98.38</td><td>87.01</td><td>14.75</td><td>66.72</td></tr>
+          <tr><td class="reg">geo+color</td><td class="reg">cGAN</td><td>98.51</td><td>87.04</td><td>21.34</td><td>68.96</td></tr>
+          <tr><td class="reg">geo+color</td><td class="reg">LSB</td><td>98.74</td><td>87.89</td><td>22.57</td><td>69.73</td></tr>
+          <tr class="best"><td class="reg">geo+color</td><td class="reg"><b>WeedDiffusion</b></td><td>98.95</td><td>90.89</td><td><b>40.02</b></td><td><b>76.62</b></td></tr>
+          <!-- DeepLab -->
+          <tr class="arch-sep"><td class="arch" rowspan="4">DeepLabV3+</td><td class="reg">geo+color</td><td class="reg">none</td><td>98.52</td><td>86.18</td><td>10.14</td><td>64.95</td></tr>
+          <tr><td class="reg">geo+color</td><td class="reg">cGAN</td><td>98.99</td><td>87.35</td><td>17.68</td><td>68.00</td></tr>
+          <tr><td class="reg">geo+color</td><td class="reg">LSB</td><td>99.02</td><td>87.85</td><td>19.43</td><td>68.77</td></tr>
+          <tr class="best"><td class="reg">geo+color</td><td class="reg"><b>WeedDiffusion</b></td><td>99.04</td><td>91.10</td><td><b>35.16</b></td><td><b>75.10</b></td></tr>
+          <!-- UNet -->
+          <tr class="arch-sep"><td class="arch" rowspan="4">UNet</td><td class="reg">geo+color</td><td class="reg">none</td><td>99.05</td><td>91.02</td><td>29.98</td><td>73.35</td></tr>
+          <tr><td class="reg">geo+color</td><td class="reg">cGAN</td><td>99.13</td><td>91.45</td><td>30.87</td><td>73.82</td></tr>
+          <tr><td class="reg">geo+color</td><td class="reg">LSB</td><td>99.17</td><td>91.83</td><td>31.54</td><td>74.18</td></tr>
+          <tr class="best"><td class="reg">geo+color</td><td class="reg"><b>WeedDiffusion</b></td><td>99.26</td><td>92.90</td><td><b>45.55</b></td><td><b>79.23</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="content-max has-text-centered figure-caption">
+      Adding WeedDiffusion samples improves mean IoU by <b>+5.9 to +10.1</b> points, with the weed IoU more than
+      doubling for every architecture (ERFNet 14.8&rarr;40.0, DeepLabV3+ 10.1&rarr;35.2, UNet 30.0&rarr;45.6).
+    </p>
+  </div>
+</section>
+
+<!-- ===================== QUALITATIVE ===================== -->
+<section class="section" style="padding-top:.5rem;">
+  <div class="container is-max-desktop has-text-centered">
+    <figure>
+      <img src="static/images/predictions.png" alt="Qualitative segmentation predictions" style="border-radius:10px; border:1px solid #e6e9ee;">
+      <figcaption class="figure-caption content-max">
+        <b>Qualitative comparison (ERFNet).</b> From left: original image, ground truth, and predictions from models
+        trained with the baseline (37 real images), cGAN, LSB, and WeedDiffusion (37 real + 120 synthetic).
+        <b>Cyan</b> = crop, <b>red</b> = weed. WeedDiffusion yields sharper boundaries and recovers small weed
+        patches missed by the other methods.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<hr class="soft">
+
+<!-- ===================== ABLATION ===================== -->
+<section class="section">
+  <div class="container is-max-desktop has-text-centered">
+    <h2 class="title is-3 accent">Data Efficiency</h2>
+    <figure>
+      <img src="static/images/ablation.png" alt="Ablation on number of training samples" style="max-width:720px; width:100%; margin:1rem auto 0;">
+      <figcaption class="figure-caption content-max">
+        Effect of the number of real images used to fine-tune the DreamBooth generators (crop + weed). Segmentation
+        quality rises sharply once a lower bound is crossed (≈25+12 samples) and then saturates — underlining the
+        method's data efficiency in low-data regimes.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<hr class="soft">
+
+<!-- ===================== BIBTEX ===================== -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered accent">BibTeX</h2>
+    <div class="content-max">
+      <pre class="bibtex-box"><code>@inproceedings{demarinis2026weeddiffusion,
+  title     = {WeedDiffusion: A Dual-Branch Synthetic Augmentation Framework for Weed Mapping},
+  author    = {De Marinis, Pasquale and Iammarino, Antonio and Vessio, Gennaro and Castellano, Giovanna},
+  booktitle = {International Conference on Pattern Recognition (ICPR)},
+  year      = {2026}
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="footer" style="padding:2rem 1.5rem;">
+  <div class="container is-max-desktop has-text-centered" style="color:#5a6472;">
+    <p style="margin-bottom:.6rem;">
+      <a class="accent" href="https://github.com/pasqualedem/WeedDiffusion" target="_blank">Code</a> &nbsp;·&nbsp;
+      <a class="accent" href="https://huggingface.co/pasqualedem/weeddiffusion" target="_blank">Models</a> &nbsp;·&nbsp;
+      <a class="accent" href="https://www.phenobench.org/dataset.html" target="_blank">PhenoBench dataset</a>
+    </p>
+    <p class="is-size-7">
+      Website template adapted from the
+      <a href="https://github.com/nerfies/nerfies.github.io" target="_blank">Nerfies</a> project page
+      (<a href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">CC BY-SA 4.0</a>).
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
