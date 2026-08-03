@@ -1,7 +1,27 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# --- Notebooks ---
+.ipynb_checkpoints/
+
+# --- Environments ---
+.venv/
+venv/
+env/
+
+# --- OS / editors ---
+.DS_Store
+Thumbs.db
+*.swp
+
+# --- Large artifacts / data (symlinked to /media/ssd) ---
+/out
+/checkpoints
+/data/
 /results/
 /phenobench/semantic_segmentation/out/
-/out
-/data/
-/checkpoints
-data
-*.pyc
