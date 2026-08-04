@@ -311,8 +311,18 @@ uv run python main.py experiment \
 If you use WeedDiffusion in your research, please cite the original work:
 
 ```bibtex
-Coming soon
+@inproceedings{demarinisWeedDiffusionDualBranchSynthetic2027,
+  title     = {WeedDiffusion: A Dual-Branch Synthetic Augmentation Framework for Weed Mapping},
+  author    = {De Marinis, Pasquale and Iammarino, Antonio and Vessio, Gennaro and Castellano, Giovanna},
+  booktitle = {Pattern Recognition},
+  publisher = {Springer Nature Switzerland},
+  year      = {2027},
+  pages     = {545--559},
+  doi       = {10.1007/978-3-032-31583-0_36}
+}
 ```
+
+Published version: https://link.springer.com/chapter/10.1007/978-3-032-31583-0_36
 
 ## 📄 License
 
